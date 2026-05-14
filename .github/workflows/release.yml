@@ -6,7 +6,7 @@ on:
       - "*"
 
 jobs:
-  release:
+  chrome:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -21,3 +21,39 @@ jobs:
         with:
           files: "google-docs-case-converter-${{ github.ref_name }}.zip"
           generate_release_notes: true
+
+  safari:
+    needs: chrome
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Convert to Safari Web Extension
+        run: |
+          xcrun safari-web-extension-converter . \
+            --bundle-identifier com.majuscules.docs \
+            --app-name MajusculesDocs \
+            --swift \
+            --force \
+            --no-prompt
+
+      - name: Build Safari extension
+        run: |
+          xcodebuild \
+            -project MajusculesDocs/MajusculesDocs.xcodeproj \
+            -scheme MajusculesDocs \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package Safari app
+        run: zip -r "majuscules-docs-safari-${{ github.ref_name }}.zip" build/Build/Products/Release/MajusculesDocs.app
+
+      - name: Upload to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "majuscules-docs-safari-${{ github.ref_name }}.zip"
